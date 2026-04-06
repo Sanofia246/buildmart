@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://buildmart-backend-9z4b.onrender.com/api',
   timeout: 15000,
 });
 
