@@ -1,17 +1,28 @@
 const { Pool } = require('pg');
-require('dotenv').config();
 
+// ── FIX: Render PostgreSQL requires SSL in production ─────────────────────
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false }
+    : false,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
-pool.on('connect', () => {
-  console.log('✅ Connected to PostgreSQL database');
+// Test connection on startup
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('❌ Database connection failed:', err.message);
+    return;
+  }
+  release();
+  console.log('✅ Database connected successfully');
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Database connection error:', err);
+  console.error('Unexpected database pool error:', err);
 });
 
 module.exports = pool;
