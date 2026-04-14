@@ -1,4 +1,11 @@
 {
+  "name": "buildmart-monorepo",
+  "version": "1.0.0",
+  "scripts": {
+    "install-frontend": "npm install --prefix frontend/frontend",
+    "build": "npm run build --prefix frontend/frontend"
+  }
+}{
   "name": "buildmart-backend",
   "version": "1.0.0",
   "description": "BuildMart Backend API - Construction Raw Material Suppliers Platform",
