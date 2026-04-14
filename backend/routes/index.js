@@ -60,15 +60,15 @@ router.get('/admin/suppliers', authenticate, requireRole('admin'), admin.getAllS
 router.patch('/admin/suppliers/:id/verify', authenticate, requireRole('admin'), admin.toggleSupplierVerified);
 router.patch('/admin/suppliers/:id/premium', authenticate, requireRole('admin'), admin.toggleSupplierPremium);
 router.patch('/admin/suppliers/:id/active', authenticate, requireRole('admin'), admin.toggleSupplierActive);
-router.post('/admin/suppliers/:id/plan', authenticate, requireRole('admin'), admin.assignPlan);
+router.post('/admin/suppliers/:id/plan', authenticate, requireRole('admin'), admin.assignPlan);      
 router.get('/admin/users', authenticate, requireRole('admin'), admin.getAllUsers);
-router.patch('/admin/users/:id/active', authenticate, requireRole('admin'), admin.toggleUserActive);
+router.patch('/admin/users/:id/active', authenticate, requireRole('admin'), admin.toggleUserActive); 
 router.get('/admin/reviews', authenticate, requireRole('admin'), admin.getAllReviews);
 router.delete('/admin/reviews/:id', authenticate, requireRole('admin'), admin.deleteReview);
 router.get('/admin/inquiries', authenticate, requireRole('admin'), admin.getAllInquiries);
 router.get('/admin/orders', authenticate, requireRole('admin'), admin.getAllOrders);
 router.post('/admin/categories', authenticate, requireRole('admin'), admin.createCategory);
-router.put('/admin/categories/:id', authenticate, requireRole('admin'), admin.updateCategory);
+router.put('/admin/categories/:id', authenticate, requireRole('admin'), admin.updateCategory);       
 router.get('/admin/plans', authenticate, requireRole('admin'), admin.getPlans);
 router.put('/admin/plans/:id', authenticate, requireRole('admin'), admin.updatePlan);
 

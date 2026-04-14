@@ -38,7 +38,7 @@ const getSuppliers = async (req, res) => {
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const query = `
       SELECT s.id, s.business_name, s.slug, s.description, s.city, s.district, s.state,
-        s.logo_url, s.banner_url, s.is_verified, s.is_premium, s.average_rating, s.total_reviews,
+        s.logo_url, s.banner_url, s.is_verified, s.is_premium, s.average_rating, s.total_reviews,    
         s.response_rate, s.established_year,
         ARRAY_AGG(DISTINCT c2.name) FILTER (WHERE c2.name IS NOT NULL) as categories,
         ARRAY_AGG(DISTINCT c2.slug) FILTER (WHERE c2.slug IS NOT NULL) as category_slugs
@@ -123,8 +123,8 @@ const getSupplierBySlug = async (req, res) => {
 
 const createSupplierProfile = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const existing = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [userId]);
+    const userId = req.user.userId;
+    const existing = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [userId]);      
     if (existing.rows.length) return res.status(409).json({ success: false, message: 'Supplier profile already exists' });
 
     const {
@@ -147,7 +147,7 @@ const createSupplierProfile = async (req, res) => {
         [supplier.id, ...categories]);
     }
     await pool.query("UPDATE users SET role = 'supplier' WHERE id = $1", [userId]);
-    res.status(201).json({ success: true, message: 'Supplier profile created', data: supplier });
+    res.status(201).json({ success: true, message: 'Supplier profile created', data: supplier });    
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -156,12 +156,12 @@ const createSupplierProfile = async (req, res) => {
 
 const updateSupplierProfile = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [userId]);
     if (!sup.rows[0]) return res.status(404).json({ success: false, message: 'Supplier profile not found' });
     const supplierId = sup.rows[0].id;
 
-    const fields = ['business_name', 'description', 'gst_number', 'pan_number', 'established_year',
+    const fields = ['business_name', 'description', 'gst_number', 'pan_number', 'established_year',  
       'address_line1', 'address_line2', 'city', 'district', 'pincode', 'website_url'];
     const updates = [];
     const params = [];
@@ -175,7 +175,7 @@ const updateSupplierProfile = async (req, res) => {
     }
 
     if (req.body.categories) {
-      await pool.query('DELETE FROM supplier_categories WHERE supplier_id = $1', [supplierId]);
+      await pool.query('DELETE FROM supplier_categories WHERE supplier_id = $1', [supplierId]);      
       if (req.body.categories.length) {
         const vals = req.body.categories.map((_, i) => `($1, $${i + 2})`).join(',');
         await pool.query(`INSERT INTO supplier_categories (supplier_id, category_id) VALUES ${vals} ON CONFLICT DO NOTHING`,
@@ -218,7 +218,7 @@ const getMySupplierProfile = async (req, res) => {
       LEFT JOIN categories c ON c.id = sc.category_id
       WHERE s.user_id = $1
       GROUP BY s.id
-    `, [req.user.id]);
+    `, [req.user.userId]);
     if (!result.rows[0]) return res.status(404).json({ success: false, message: 'No supplier profile found' });
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -228,14 +228,14 @@ const getMySupplierProfile = async (req, res) => {
 
 const getSupplierStats = async (req, res) => {
   try {
-    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.id]);
+    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.userId]);      
     if (!sup.rows[0]) return res.status(404).json({ success: false, message: 'Not found' });
     const sid = sup.rows[0].id;
     const [inquiries, reviews, views, products] = await Promise.all([
       pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN status=\'pending\' THEN 1 END) as pending FROM inquiries WHERE supplier_id=$1', [sid]),
       pool.query('SELECT COUNT(*) as total, COALESCE(AVG(rating),0) as avg FROM reviews WHERE supplier_id=$1', [sid]),
       pool.query('SELECT COUNT(*) FROM supplier_views WHERE supplier_id=$1 AND viewed_at > NOW() - INTERVAL \'30 days\'', [sid]),
-      pool.query('SELECT COUNT(*) FROM products WHERE supplier_id=$1 AND is_available=true', [sid]),
+      pool.query('SELECT COUNT(*) FROM products WHERE supplier_id=$1 AND is_available=true', [sid]), 
     ]);
     res.json({
       success: true,

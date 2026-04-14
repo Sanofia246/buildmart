@@ -1,6 +1,6 @@
 const pool = require('../config/database');
 
-// ── CATEGORIES ──────────────────────────────────────────────
+// ──── CATEGORIES ────────────────────────────────────────────
 const getCategories = async (req, res) => {
   try {
     const result = await pool.query(`
@@ -16,7 +16,7 @@ const getCategories = async (req, res) => {
   }
 };
 
-// ── PRODUCTS ────────────────────────────────────────────────
+// ──── PRODUCTS ────────────────────────────────────────────
 const getSupplierProducts = async (req, res) => {
   try {
     const { supplierId } = req.params;
@@ -32,7 +32,7 @@ const getSupplierProducts = async (req, res) => {
 
 const createProduct = async (req, res) => {
   try {
-    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.id]);
+    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.userId]);      
     if (!sup.rows[0]) return res.status(404).json({ success: false, message: 'Supplier profile not found' });
 
     const { name, description, category_id, price_min, price_max, price_unit, min_order_quantity, min_order_unit, specifications } = req.body;
@@ -52,8 +52,8 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.id]);
-    if (!sup.rows[0]) return res.status(403).json({ success: false, message: 'Access denied' });
+    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.userId]);      
+    if (!sup.rows[0]) return res.status(403).json({ success: false, message: 'Access denied' });     
 
     const fields = ['name', 'description', 'price_min', 'price_max', 'price_unit', 'min_order_quantity', 'is_available'];
     const updates = []; const params = []; let idx = 1;
@@ -72,7 +72,7 @@ const updateProduct = async (req, res) => {
 const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.id]);
+    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.userId]);      
     await pool.query('DELETE FROM products WHERE id = $1 AND supplier_id = $2', [id, sup.rows[0].id]);
     res.json({ success: true, message: 'Product deleted' });
   } catch (err) {
@@ -82,7 +82,7 @@ const deleteProduct = async (req, res) => {
 
 const getMyProducts = async (req, res) => {
   try {
-    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.id]);
+    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.userId]);      
     if (!sup.rows[0]) return res.json({ success: true, data: [] });
     const result = await pool.query('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.supplier_id = $1 ORDER BY p.created_at DESC', [sup.rows[0].id]);
     res.json({ success: true, data: result.rows });
@@ -91,14 +91,14 @@ const getMyProducts = async (req, res) => {
   }
 };
 
-// ── REVIEWS ─────────────────────────────────────────────────
+// ──── REVIEWS ────────────────────────────────────────────
 const createReview = async (req, res) => {
   try {
     const { supplier_id, rating, title, comment } = req.body;
     if (!supplier_id || !rating) return res.status(400).json({ success: false, message: 'Missing required fields' });
     const result = await pool.query(
       'INSERT INTO reviews (supplier_id, user_id, rating, title, comment) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (supplier_id, user_id) DO UPDATE SET rating=$3, title=$4, comment=$5, updated_at=NOW() RETURNING *',
-      [supplier_id, req.user.id, rating, title, comment]
+      [supplier_id, req.user.userId, rating, title, comment]
     );
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -125,7 +125,7 @@ const getSupplierReviews = async (req, res) => {
   }
 };
 
-// ── INQUIRIES ───────────────────────────────────────────────
+// ──── INQUIRIES ────────────────────────────────────────────
 const createInquiry = async (req, res) => {
   try {
     const { supplier_id, product_id, buyer_name, buyer_email, buyer_phone, buyer_company, message, quantity, unit, requirement_type } = req.body;
@@ -135,7 +135,7 @@ const createInquiry = async (req, res) => {
     const result = await pool.query(`
       INSERT INTO inquiries (supplier_id, buyer_id, product_id, buyer_name, buyer_email, buyer_phone, buyer_company, message, quantity, unit, requirement_type)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *
-    `, [supplier_id, req.user?.id || null, product_id || null, buyer_name, buyer_email, buyer_phone, buyer_company, message, quantity, unit, requirement_type || 'one-time']);
+    `, [supplier_id, req.user?.userId || null, product_id || null, buyer_name, buyer_email, buyer_phone, buyer_company, message, quantity, unit, requirement_type || 'one-time']);
 
     res.status(201).json({ success: true, message: 'Inquiry sent successfully', data: result.rows[0] });
   } catch (err) {
@@ -146,7 +146,7 @@ const createInquiry = async (req, res) => {
 
 const getMyInquiries = async (req, res) => {
   try {
-    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.id]);
+    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.userId]);      
     if (!sup.rows[0]) return res.json({ success: true, data: [] });
     const result = await pool.query(`
       SELECT i.*, p.name as product_name
@@ -163,7 +163,7 @@ const updateInquiryStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.id]);
+    const sup = await pool.query('SELECT id FROM suppliers WHERE user_id = $1', [req.user.userId]);      
     await pool.query('UPDATE inquiries SET status = $1, updated_at = NOW() WHERE id = $2 AND supplier_id = $3', [status, id, sup.rows[0].id]);
     res.json({ success: true, message: 'Status updated' });
   } catch (err) {
@@ -171,11 +171,11 @@ const updateInquiryStatus = async (req, res) => {
   }
 };
 
-// ── SAVED SUPPLIERS ─────────────────────────────────────────
+// ──── SAVED SUPPLIERS ────────────────────────────────────────────
 const saveSupplier = async (req, res) => {
   try {
     const { supplierId } = req.params;
-    await pool.query('INSERT INTO saved_suppliers (user_id, supplier_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.user.id, supplierId]);
+    await pool.query('INSERT INTO saved_suppliers (user_id, supplier_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.user.userId, supplierId]);
     res.json({ success: true, message: 'Supplier saved' });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -185,7 +185,7 @@ const saveSupplier = async (req, res) => {
 const unsaveSupplier = async (req, res) => {
   try {
     const { supplierId } = req.params;
-    await pool.query('DELETE FROM saved_suppliers WHERE user_id = $1 AND supplier_id = $2', [req.user.id, supplierId]);
+    await pool.query('DELETE FROM saved_suppliers WHERE user_id = $1 AND supplier_id = $2', [req.user.userId, supplierId]);
     res.json({ success: true, message: 'Supplier removed from saved' });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -198,14 +198,14 @@ const getSavedSuppliers = async (req, res) => {
       SELECT s.id, s.business_name, s.slug, s.city, s.district, s.logo_url, s.average_rating, s.total_reviews, s.is_verified, ss.created_at as saved_at
       FROM saved_suppliers ss JOIN suppliers s ON s.id = ss.supplier_id
       WHERE ss.user_id = $1 ORDER BY ss.created_at DESC
-    `, [req.user.id]);
+    `, [req.user.userId]);
     res.json({ success: true, data: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// ── SEARCH ──────────────────────────────────────────────────
+// ──── SEARCH ────────────────────────────────────────────
 const globalSearch = async (req, res) => {
   try {
     const { q, limit = 5 } = req.query;
@@ -216,16 +216,16 @@ const globalSearch = async (req, res) => {
       pool.query(`SELECT id, name, slug, icon FROM categories WHERE is_active=true AND name ILIKE $1 LIMIT $2`, [`%${q}%`, limit]),
     ]);
 
-    res.json({ success: true, data: { suppliers: suppliers.rows, categories: categories.rows } });
+    res.json({ success: true, data: { suppliers: suppliers.rows, categories: categories.rows } });   
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// ── CITIES ──────────────────────────────────────────────────
+// ──── CITIES ────────────────────────────────────────────
 const getCities = async (req, res) => {
   try {
-    const result = await pool.query(`SELECT DISTINCT city, district, COUNT(*) as count FROM suppliers WHERE is_active=true AND city IS NOT NULL GROUP BY city, district ORDER BY count DESC LIMIT 30`);
+    const result = await pool.query(`SELECT DISTINCT city, district, COUNT(*) as count FROM suppliers WHERE is_active=true AND city IS NOT NULL GROUP BY city, district ORDER BY count DESC LIMIT 30`);   
     res.json({ success: true, data: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
