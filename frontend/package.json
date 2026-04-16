@@ -1,11 +1,12 @@
 {
-  "name": "buildmart-backend",
+  "name": "buildmart-frontend",
+  "private": true,
   "version": "1.0.0",
-  "description": "BuildMart Backend API - Construction Raw Material Suppliers Platform",
-  "main": "server.js",
+  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "axios": "^1.6.2",
