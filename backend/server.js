@@ -1,25 +1,29 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 
-// ── Startup guards ──────────────────────────────────────────────────────────
-if (!process.env.DATABASE_URL) {
-  console.error('FATAL: DATABASE_URL env variable is not set');
-  process.exit(1);
-}
+// ──── Database ────────────────────────────────────────────
+const pool = require('./config/database');
+
+// ──── Check required env vars ────────────────────────────────
 if (!process.env.JWT_SECRET) {
   console.error('FATAL: JWT_SECRET env variable is not set');
   process.exit(1);
 }
 
+if (!process.env.DATABASE_URL) {
+  console.error('FATAL: DATABASE_URL env variable is not set');
+  process.exit(1);
+}
+
 const app = express();
 
-// ── Security headers ────────────────────────────────────────────────────────
+// ──── Security headers ────────────────────────────────────────
 app.use(helmet());
 
-// ── CORS — FIX: explicitly allow deployed frontend origin ──────────────────
+// ──── CORS – FIX: explicitly allow deployed frontend origin ────────
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
@@ -34,15 +38,15 @@ app.use(cors({
     callback(new Error(`CORS policy: origin ${origin} not allowed`));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// ── Body parsing ─────────────────────────────────────────────────────────────
+// ──── Body parsing ────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ── Global rate limiter (generous — tighten per route below) ──────────────
+// ──── Global rate limiter (generous – tighten per route below) ────
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 500,
@@ -52,7 +56,7 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// ── Stricter limiter for auth endpoints ────────────────────────────────────
+// ──── Stricter limiter for auth endpoints ────────────────────────
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -61,27 +65,34 @@ const authLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
-// ── Routes ────────────────────────────────────────────────────────────────
+// ──── Routes ────────────────────────────────────────────────────
 const routes = require('./routes/index');
 app.use('/api', routes);
 
-// ── Health check ──────────────────────────────────────────────────────────
+// ──── Health check ────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
-// ── 404 handler ───────────────────────────────────────────────────────────
+// ──── 404 handler ────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// ── Global error handler ──────────────────────────────────────────────────
+// ──── Global error handler ────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({ error: 'Internal server error', message: err.message });
 });
 
-// ── Start ─────────────────────────────────────────────────────────────────
+// ──── Start ────────────────────────────────────────────────
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5178', // <--- Add this line!
+  'http://localhost:3000',
+  'https://buildmart-frontend-cebk.onrender.com',
+];
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`BuildMart backend running on port ${PORT}`);
+  console.log(`✅ BuildMart backend running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`CORS enabled for: ${allowedOrigins.join(', ')}`);
 });

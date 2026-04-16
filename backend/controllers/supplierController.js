@@ -91,7 +91,6 @@ const getSupplierBySlug = async (req, res) => {
 
     if (!result.rows[0]) return res.status(404).json({ success: false, message: 'Supplier not found' });
 
-    // Track view
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     pool.query('INSERT INTO supplier_views (supplier_id, viewer_ip) VALUES ($1, $2)', [result.rows[0].id, ip]).catch(() => {});
 
@@ -132,13 +131,17 @@ const createSupplierProfile = async (req, res) => {
       address_line1, address_line2, city, district, pincode, categories = []
     } = req.body;
 
+    // FIX: Convert empty strings to null for integer columns
+    const validatedYear = (established_year === "" || established_year === undefined) ? null : parseInt(established_year);
+    const validatedPincode = (pincode === "" || pincode === undefined) ? null : parseInt(pincode);
+
     const slug = business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
     const result = await pool.query(`
       INSERT INTO suppliers (user_id, business_name, slug, description, gst_number, established_year,
         address_line1, address_line2, city, district, pincode, state)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'Tamil Nadu')
       RETURNING *
-    `, [userId, business_name, slug, description, gst_number, established_year, address_line1, address_line2, city, district, pincode]);
+    `, [userId, business_name, slug, description, gst_number, validatedYear, address_line1, address_line2, city, district, validatedPincode]);
 
     const supplier = result.rows[0];
     if (categories.length) {
@@ -149,7 +152,7 @@ const createSupplierProfile = async (req, res) => {
     await pool.query("UPDATE users SET role = 'supplier' WHERE id = $1", [userId]);
     res.status(201).json({ success: true, message: 'Supplier profile created', data: supplier });    
   } catch (err) {
-    console.error(err);
+    console.error('CREATE PROFILE ERROR:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -166,9 +169,23 @@ const updateSupplierProfile = async (req, res) => {
     const updates = [];
     const params = [];
     let idx = 1;
+
     for (const f of fields) {
-      if (req.body[f] !== undefined) { updates.push(`${f} = $${idx}`); params.push(req.body[f]); idx++; }
+      if (req.body[f] !== undefined) {
+        let value = req.body[f];
+        // FIX: Ensure empty integer fields are updated as null
+        if ((f === 'established_year' || f === 'pincode') && value === "") {
+          value = null;
+        } else if ((f === 'established_year' || f === 'pincode') && value !== null) {
+          value = parseInt(value);
+        }
+        
+        updates.push(`${f} = $${idx}`);
+        params.push(value);
+        idx++;
+      }
     }
+
     if (updates.length) {
       updates.push(`updated_at = NOW()`);
       await pool.query(`UPDATE suppliers SET ${updates.join(', ')} WHERE id = $${idx}`, [...params, supplierId]);
@@ -184,7 +201,7 @@ const updateSupplierProfile = async (req, res) => {
     }
     res.json({ success: true, message: 'Profile updated successfully' });
   } catch (err) {
-    console.error(err);
+    console.error('UPDATE PROFILE ERROR:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
