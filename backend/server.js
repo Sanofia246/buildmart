@@ -84,12 +84,6 @@ app.use((err, req, res, next) => {
 });
 
 // ──── Start ────────────────────────────────────────────────
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5178', // <--- Add this line!
-  'http://localhost:3000',
-  'https://buildmart-frontend-cebk.onrender.com',
-];
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`✅ BuildMart backend running on port ${PORT}`);
